@@ -1,0 +1,62 @@
+body 
+{
+    font-family: 'Bahnschrift Light', 'Segoe UI', 'Tahoma', 'Geneva', 'Verdana', sans-serif
+}
+
+
+h1 {
+    color:#A47864;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #EFFCF7;
+    padding: 30px;
+    border-radius: 8px;
+
+}
+
+.button {
+    background-color: #004225;
+    color: #FFEF00; 
+    border-radius: 2px;
+
+    text-align: center;
+    font-family: inherit;
+    font-size: small;
+
+    cursor: pointer;
+}
+
+.button-remove {
+    background-color: red;
+    border-radius: 2px;
+
+    text-align: center;
+    font-family: inherit;
+    font-size: small;
+
+    cursor: pointer;   
+}
+.button-removeall {
+    background-color: #370617;
+    border-radius: 2px;
+
+    text-align: center;
+    font-family: inherit;
+    font-size: small;
+    color:#EFFCF7;
+    cursor: pointer;   
+}
+
+.input-todo-text {
+    border-radius: 2px;
+    font-family: inherit;
+    font-size: small;
+}
+
+.list-items {
+    font-family: inherit;
+    font-size: medium;
+}

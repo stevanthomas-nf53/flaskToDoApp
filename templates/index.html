@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Todo List </title>
+    <link rel ="stylesheet" href="{{ url_for('static',filename='style.css') }}">
+  </head>
+  <body>
+    <div class = "container">
+      <h1>My To-dos </h1>
+      <h2>Total To-dos: {{ todos|length }}</h2>
+
+      <form action="/add" method="POST">
+        <input type="text" name="todo" placeholder="Add a new todo" class = "input-todo-text" required>
+
+        <label for = "priority" >Choose a priority</label>
+        <select name="priority" id = "priority"> 
+          <option value = "high">High</option>
+          <option value = "medium">Medium</option>
+          <option value = "low"> Low </option>
+        </select>
+        <button type ="submit" class = "button">Add</button>
+      </form>
+
+      <ul>
+        {% for todo in todos %}
+          <li class = "list-items" style="{% if todo.done %}text-decoration: line-through; color: gray;{% endif %}">
+            {{todo.title}}     | Priority: {{todo.priority}}    | Created Timestamp: {{todo.timestamp}}
+            <form action="/toggle/{{todo.id}}" method="POST" style="display:inline">
+              <button class = "button" type="submit">{% if todo.done %}Undo{% else %}Done{% endif %}</button></form>
+            <form action="/delete/{{todo.id}}" method ="POST" style="display:inline">
+              <button type="submit" class = "button-remove">Delete</button>
+            </form>
+          </li>
+          {% endfor %}
+      </ul>
+        <form action="/clearall" method="POST" style="display:inline">
+          <button type="submit" class = "button-removeall">Clear All </button>
+        </form>
+    </div>
+  </body>
+</html>
