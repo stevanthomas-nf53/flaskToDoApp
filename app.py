@@ -1,12 +1,37 @@
-from flask import Flask, render_template, request, redirect, url_for,jsonify
+from flask_login import LoginManager,UserMixin,login_user,logout_user,login_required, current_user
 from datetime import datetime
 import sqlite3
 import logging
 import os
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 app = Flask(__name__)
+
+app.secret_key = os.getenv("SECRET_KEY","dev-secret-key")
+
+class User(UserMixin):
+    def __init__ (self,id,username,email,password_hash):
+        self.id = id
+        self.username = username
+        self.email = email
+        self.password_hash = password_hash
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login"
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = sqlite3.connect("todos.db")
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    user = cursor.execute("SELECT * FROM users WHERE id = ?",(user_id,)).fetchone()
+    conn.close()
+    if user:
+        return User(user["id"],user["username"],user["email"],user["password_hash"])
+    return None
+
 
 app.logger.setLevel("DEBUG")
 
@@ -19,8 +44,10 @@ def init_db() -> None:
     app.logger.debug("Connecting to database")
     conn = sqlite3.connect("todos.db")
     cursor = conn.cursor()
-    cursor.execute("CREATE TABLE IF NOT EXISTS todos(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,priority TEXT,timestamp TEXT,done int)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS todos(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT,priority TEXT,user_id INTEGER,timestamp TEXT,done int)")
     app.logger.debug("Todo table created")
+    cursor.execute("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT, email TEXT, password_hash TEXT)")
+    app.logger.debug("User table created")
     conn.commit()
     conn.close()
 
@@ -50,6 +77,93 @@ def server_error(e):
 
 
 #Functions for HTML 
+
+
+@app.route("/register", methods=["POST","GET"])
+def register():
+    if request.method =="POST":
+        conn = sqlite3.connect("todos.db")
+        cursor = conn.cursor()
+        username = request.form.get("username")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        # Checking if inputs are valid
+        if not username:
+            flash("Username is required","error")
+            return redirect(url_for("register"))
+        if not email:
+            flash("Email is required","error")
+            return redirect(url_for("register"))
+        if not password:
+            flash ("Password is required","error")
+            return redirect(url_for("register"))
+
+        app.logger.debug("Checking if given username already exists")
+        username_check = cursor.execute("SELECT * FROM users WHERE username = ?",(username,)).fetchone()
+        if username_check:
+            flash("Username already taken","error")
+            app.logger.warning("Given username exists")     
+            return redirect(url_for("register"))
+
+        app.logger.debug("Checking if a user with given email already exists")
+        email_check = cursor.execute("SELECT * FROM users WHERE email = ?",(email,)).fetchone()
+        if email_check:
+            flash("A user with that email exists","error")
+            app.logger.warning("User with given email exists")
+            return redirect(url_for("register"))
+
+        # Inserting user into database
+        pw_hash = generate_password_hash(password)
+        app.logger.debug("Inserting user to database")
+        try:
+            cursor.execute("INSERT INTO users (username,email,password_hash) VALUES(?,?,?)",(username,email,pw_hash,))
+            app.logger.debug("Insert user successful")
+            conn.commit()
+            conn.close()
+            return redirect(url_for("login"))
+
+        except Exception as e:
+            app.logger.error(e)
+            conn.close()
+            flash ("Something went wrong. Please try again","error")
+            return redirect(url_for("register"))
+    if request.method =="GET":
+        return render_template("register.html")
+
+
+@app.route("/login", methods=["GET","POST"])
+def login():
+    if request.method == "POST":
+        conn = sqlite3.connect("todos.db")
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        username = request.form.get("username")
+        password = request.form.get("password")
+        get_user = cursor.execute("SELECT * FROM users WHERE username = ?",(username,)).fetchone()
+        if not get_user:
+            app.logger.warning("Entered user does not exist in db")
+            flash("User does not exists. Please register to sign in or try another account")
+            conn.close()
+            return redirect(url_for("login"))
+        if check_password_hash(get_user["password_hash"],password):
+            flash("Login successful")
+            user = User(get_user["id"],get_user["username"],get_user["email"],get_user["password_hash"])
+            login_user(user)
+            conn.close()
+            return redirect(url_for("index"))
+        else:
+            app.logger.error("Login failed for user")
+            flash("Login failed. Check your username or password")
+            conn.close()
+            return redirect(url_for("login"))
+    if request.method =="GET":
+        return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    logout_user()
+    return redirect(url_for("login"))
+
 @app.route("/")
 def index():
     return render_template("index.html", todos = load_todos())
